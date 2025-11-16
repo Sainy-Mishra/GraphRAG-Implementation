@@ -1,0 +1,79 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Interactive Knowledge Graph</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="graph-container">
+        <div class="top-bar">
+            <a class="back-button" href="{{ url_for('index') }}">&larr; New Graph</a>
+            <h2>Interactive Knowledge Graph</h2>
+        </div>
+
+        <div class="graph-area">
+            <svg id="graph-svg"></svg>
+            <div id="info-panel" class="info-panel hidden">
+                <button id="close-info" class="close-button">&times;</button>
+                <h3 id="info-title"></h3>
+                <div id="info-body"></div>
+            </div>
+        </div>
+
+        <div class="controls-legend">
+            <strong>Controls:</strong> Drag nodes | Scroll to zoom | Double-click node to center.
+        </div>
+    </div>
+
+    <script>
+        // Graph JSON injected by Flask
+        const GRAPH_DATA = {{ graph_json|safe }};
+    </script>
+    <script src="{{ url_for('static', filename='js/graph.js') }}"></script>
+</body>
+</html> -->
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Interactive Knowledge Graph</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="graph-container">
+        <div class="top-bar">
+            <a class="back-button" href="{{ url_for('index') }}">&larr; New Graph</a>
+            <h2>Interactive Knowledge Graph</h2>
+        </div>
+
+        <div class="graph-area">
+            <svg id="graph-svg"></svg>
+            <div id="info-panel" class="info-panel hidden">
+                <button id="close-info" class="close-button">&times;</button>
+                <h3 id="info-title"></h3>
+                <div id="info-body"></div>
+            </div>
+        </div>
+
+        <div class="controls-legend">
+            <strong>Controls:</strong> Drag nodes | Scroll to zoom | Double-click node to center.
+        </div>
+    </div>
+
+    <script>
+        // Graph JSON injected by Flask
+        const GRAPH_DATA = {{ graph_json|safe }};
+    </script>
+    <script src="{{ url_for('static', filename='js/graph.js') }}"></script>
+</body>
+</html>
