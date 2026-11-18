@@ -1,5 +1,5 @@
 """
-GraphRAG System using Mistral API
+GraphRAG System using a free LLM API (Groq by default)
 Handles text file upload, knowledge graph construction, and Q&A chatbot
 """
 
@@ -9,23 +9,26 @@ import json
 from typing import List, Dict, Tuple, Optional
 from collections import defaultdict
 import networkx as nx
-from mistralai import Mistral
+from openai import OpenAI
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import spacy
 from sentence_transformers import SentenceTransformer
 
 class GraphRAGSystem:
-    def __init__(self, mistral_api_key: str, model: str = "mistral-large-latest"):
+    def __init__(self, api_key: str, model: str = None):
         """
         Initialize the GraphRAG System
-        
+
         Args:
-            mistral_api_key: Your Mistral API key
-            model: Mistral model to use (default: mistral-large-latest)
+            api_key: API key for the LLM provider (Groq by default, free tier)
+            model: Chat model to use (default: env LLM_MODEL, else llama-3.3-70b-versatile)
         """
-        self.mistral_client = Mistral(api_key="wC6qujfIk7MlyJyagePGqu7YdNxmBFHr")
-        self.model = model
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url=os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1"),
+        )
+        self.model = model or os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
         
         # Initialize NLP models
         try:
@@ -50,6 +53,33 @@ class GraphRAGSystem:
         self.entities = {}  # entity_name -> entity_info
         self.relationships = []  # List of (entity1, relationship, entity2)
         
+    def _chat(self, messages, temperature: float = 0.3) -> str:
+        """Call the LLM. If the model name is rejected, switch to another available chat model."""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model, messages=messages, temperature=temperature
+            )
+        except Exception as e:
+            msg = str(e).lower()
+            model_problem = "model" in msg and any(
+                s in msg for s in ("not found", "decommission", "does not exist", "no longer supported")
+            )
+            if not model_problem:
+                raise
+            skip = ("whisper", "guard", "tts", "embed", "playai", "orpheus")
+            candidates = [
+                m.id for m in self.client.models.list().data
+                if m.id != self.model and not any(s in m.id.lower() for s in skip)
+            ]
+            if not candidates:
+                raise
+            print(f"Model '{self.model}' unavailable; switching to '{candidates[0]}'")
+            self.model = candidates[0]
+            response = self.client.chat.completions.create(
+                model=self.model, messages=messages, temperature=temperature
+            )
+        return response.choices[0].message.content or ""
+
     def load_text_file(self, file_path: str, chunk_size: int = 500, chunk_overlap: int = 50):
         """
         Load and process a text file
@@ -95,7 +125,7 @@ class GraphRAGSystem:
         print("Extracting entities and relationships...")
         
         if self.nlp is None:
-            # Fallback: simple entity extraction using Mistral
+            # Fallback: simple entity extraction using the LLM
             self._extract_entities_with_mistral()
         else:
             # Use spaCy for entity extraction
@@ -137,8 +167,8 @@ class GraphRAGSystem:
                             self.relationships.append((ent1, 'related_to', ent2))
     
     def _extract_entities_with_mistral(self):
-        """Extract entities using Mistral API (fallback when spaCy not available)"""
-        print("Using Mistral API for entity extraction...")
+        """Extract entities using the LLM API (fallback when spaCy not available)"""
+        print("Using the LLM API for entity extraction...")
         
         # Process in batches to avoid too many API calls
         batch_size = 5
@@ -156,12 +186,7 @@ Text:
 JSON:"""
             
             try:
-                response = self.mistral_client.chat.complete(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                
-                result = response.choices[0].message.content.strip()
+                result = self._chat([{"role": "user", "content": prompt}]).strip()
                 # Try to extract JSON from response
                 json_match = re.search(r'\[.*\]', result, re.DOTALL)
                 if json_match:
@@ -267,7 +292,7 @@ JSON:"""
             if graph_context:
                 graph_context = f"\n\n[Knowledge Graph Context]:\n{graph_context}"
         
-        # Build prompt for Mistral
+        # Build prompt for the LLM
         system_prompt = """You are a helpful assistant that answers questions based on the provided context from documents and knowledge graph.
 Use the context information to provide accurate, detailed answers. If the context doesn't contain enough information, say so."""
         
@@ -280,16 +305,13 @@ Question: {question}
 Answer:"""
         
         try:
-            response = self.mistral_client.chat.complete(
-                model=self.model,
-                messages=[
+            answer = self._chat(
+                [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.7
-            )
-            
-            answer = response.choices[0].message.content.strip()
+                temperature=0.3
+            ).strip()
             return answer
         
         except Exception as e:
@@ -330,4 +352,3 @@ Answer:"""
             print("matplotlib not available. Install with: pip install matplotlib")
         except Exception as e:
             print(f"Error visualizing graph: {e}")
-
